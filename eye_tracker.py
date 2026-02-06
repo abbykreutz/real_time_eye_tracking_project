@@ -24,75 +24,100 @@ MODEL_PATH = "face_landmarker.task"
 # # Always safe (headless or not): save to file
 # cv.imwrite("hello.png", img)
 
-# --- STEP 1: WORKING WEBCAM DISPLAY ---
-def main():
-    cap = cv.VideoCapture(0)
+# --- CODE ARCHITECTURE ---
+class EyeTracker:
+    def __init__(self, model_path: str = MODEL_PATH, ear_threshold: float = 0.21):
+        face_mesh = vision.FaceLandmarkerOptions(
+            base_options=BaseOptions(model_asset_path=model_path),
+            running_mode=VisionRunningMode.VIDEO,
+            num_faces=1,
+            min_face_detection_confidence=0.5,
+            min_face_presence_confidence=0.5,
+            min_tracking_confidence=0.5,
+        )
+        self.landmarker = vision.FaceLandmarker.create_from_options(face_mesh)
+        self.ear_threshold = ear_threshold
+        self.frame_count = 0
+        self._face_detected = None
+        
+    def calculate_ear(self, eye_landmarks):
+        # Compute Eye Aspect Ratio
+        # Return float value
+        return None
+        
+    def get_eye_landmarks(self, landmarks, indices, frame_w, frame_h):
+        # Extract specific eye landmarks
+        # Return list of (x, y) coordinates
+        return None
+        
+    def process_frame(self, frame):
+        self.frame_count += 1
 
-    if not cap.isOpened():
-        print("Error: Could not open webcam.\n"
-              "On macOS: System Settings → Privacy & Security → Camera → allow Terminal/VS Code.")
-        return
-    
-    face_mesh = vision.FaceLandmarkerOptions(
-        base_options=BaseOptions(model_asset_path=MODEL_PATH),
-        running_mode=VisionRunningMode.VIDEO,
-        num_faces=1,
-        min_face_detection_confidence=0.5,
-        min_face_presence_confidence=0.5,
-        min_tracking_confidence=0.5,
-    )
-
-    landmarker = vision.FaceLandmarker.create_from_options(face_mesh)
-    
-    verified = False
-
-    while True:
-        success, frame = cap.read()
-        if not success:
-            break
-    
         rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
 
         timestamp_ms = int(cv.getTickCount() / cv.getTickFrequency() * 1000)
-        result = landmarker.detect_for_video(mp_image, timestamp_ms)
-        
-        # Verify MediaPipe once by processing single frame
-        if not verified:
-            if result.face_landmarks:
-                print("MediaPipe FaceMesh: OK - face detected")
-            else:
-                print("MediaPipe FaceMesh: OK - no face detected (handled)")
-            verified = True
+        result = self.landmarker.detect_for_video(mp_image, timestamp_ms)
 
-        cv.imshow("Real-Time Eye Tracking Webcam (press q to quit)", frame)
-        if cv.waitKey(1) & 0xFF == ord('q'):
-            break
-    
-    cap.release()
-    cv.destroyAllWindows()
-    
+        detected = bool(result.face_landmarks)
+
+        if detected != self._face_detected:
+            print("Face Detected" if detected else "No Face Detected")
+            self._face_detected = detected
+
+        if detected:
+            self._draw_all_landmarks(frame, result.face_landmarks[0])
+            status_text = "FACE DETECTED"
+            color = (0, 255, 0)
+        else:
+            status_text = "FACE NOT DETECTED"
+            color = (0, 0, 255)
+
+        # Process single frame
+        # Return annotated frame
+        cv.putText(frame, status_text, (10, 30),
+                   cv.FONT_HERSHEY_SIMPLEX, 0.8,
+                   (0, 255, 0) if result.face_landmarks else (0, 0, 255), 2)
+
+        cv.putText(frame, f"Frame: {self.frame_count}", (10, 60),
+                   cv.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+
+        return frame
+
+    def _draw_all_landmarks(self, frame_bgr, landmarks, radius: int = 1):
+        """Draws every facial landmark point."""
+        h, w = frame_bgr.shape[:2]
+        for lm in landmarks:
+            x = int(lm.x * w)
+            y = int(lm.y * h)
+            if 0 <= x < w and 0 <= y < h:
+                cv.circle(frame_bgr, (x, y), radius, (0, 255, 0), -1)
+        
+    def run(self):
+        cap = cv.VideoCapture(0)
+
+        cap.set(cv.CAP_PROP_FPS, 30)
+        cap.set(cv.CAP_PROP_FRAME_WIDTH, 640)
+        cap.set(cv.CAP_PROP_FRAME_HEIGHT, 480)
+
+        if not cap.isOpened():
+            print("Error: Could not open webcam.\n"
+                "On macOS: System Settings → Privacy & Security → Camera → allow Terminal/VS Code.")
+            return
+
+        while True:
+            success, frame = cap.read()
+            if not success:
+                break
+            
+            frame = self.process_frame(frame)
+
+            cv.imshow("Real-Time Eye Tracking Webcam (press q to quit)", frame)
+            if cv.waitKey(1) & 0xFF == ord('q'):
+                break
+        
+        cap.release()
+        cv.destroyAllWindows()
+        
 if __name__ == "__main__":
-    main()
-
-# # --- CODE ARCHITECTURE ---
-# class EyeTracker:
-#     def __init__(self):
-#         # Initialize MediaPipe Face Mesh
-#         # Set EAR threshold
-        
-#     def calculate_ear(self, eye_landmarks):
-#         # Compute Eye Aspect Ratio
-#         # Return float value
-        
-#     def get_eye_landmarks(self, landmarks, indices, frame_w, frame_h):
-#         # Extract specific eye landmarks
-#         # Return list of (x, y) coordinates
-        
-#     def process_frame(self, frame):
-#         # Process single frame
-#         # Return annotated frame
-        
-#     def run(self):
-#         # Main loop: capture, process, display
-#         # Handle keyboard input
+    EyeTracker().run()
