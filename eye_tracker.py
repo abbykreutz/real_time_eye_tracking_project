@@ -1,3 +1,4 @@
+# --- STEP 1: ENVIRONMENT SETUP ---
 import cv2 as cv
 import numpy as np
 import mediapipe as mp
@@ -5,7 +6,7 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.core import base_options
 
-# Load the Face Landmark Model
+# Load Face Landmark Model
 BaseOptions = mp.tasks.BaseOptions
 FaceLandmarker = mp.tasks.vision.FaceLandmarker
 FaceLandmarkerOptions = mp.tasks.vision.FaceLandmarkerOptions
@@ -17,7 +18,7 @@ MODEL_PATH = "face_landmarker.task"
 LEFT_EYE_INDICES = [362, 385, 387, 263, 373, 380]
 RIGHT_EYE_INDICES = [33, 160, 158, 133, 153, 144]
 
-# # --- STEP 1: TEST OPENCV INSTALLATION ---
+# # TEST OPENCV INSTALLATION
 # print("OpenCV:", cv.__version__)
 # img = np.zeros((120, 400, 3), dtype=np.uint8)
 # cv.putText(img, "OpenCV OK", (10, 80), cv.FONT_HERSHEY_SIMPLEX, 2, (255,255,255), 3)
@@ -41,16 +42,21 @@ class EyeTracker:
         self.ear_threshold = ear_threshold
         self.frame_count = 0
         self._face_detected = None
+
+    def euclidean(self, p1, p2):
+        return np.linalg.norm(np.array(p1) - np.array(p2))
         
     def calculate_ear(self, eye_landmarks):
+
         p1, p2, p3, p4, p5, p6 = eye_landmarks
 
-        v1 = np.linalg.norm(np.array(p2) - np.array(p6))
-        v2 = np.linalg.norm(np.array(p3) - np.array(p5))
-        h = np.linalg.norm(np.array(p1) - np.array(p4))
+        v1 = self.euclidean(p2, p6)
+        v2 = self.euclidean(p3, p5)
+        h = self.euclidean(p1, p4)
 
         if h == 0:
             return 0.0
+        
         ear = (v1 + v2) / (2.0 * h)
         return ear
         
@@ -80,7 +86,6 @@ class EyeTracker:
         h, w = frame.shape[:2]
 
         if detected:
-            self._draw_all_landmarks(frame, result.face_landmarks[0])
 
             left_eye = self.get_eye_landmarks(result.face_landmarks[0], LEFT_EYE_INDICES, w, h)
             right_eye = self.get_eye_landmarks(result.face_landmarks[0], RIGHT_EYE_INDICES, w, h)
@@ -89,16 +94,19 @@ class EyeTracker:
             right_ear = self.calculate_ear(right_eye)
             avg_ear = (left_ear + right_ear) / 2.0
 
+            cv.putText(frame, f"EAR: {avg_ear:.3f}", (10,90),
+                       cv.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+
             eye_color = (255, 0, 0)  # blue (OPEN)
             eye_state = "OPEN"
             if avg_ear < self.ear_threshold:
                 eye_color = (0, 0, 255)  # red (CLOSED)
                 eye_state = "CLOSED"
 
-            cv.polylines(frame, [np.array(left_eye, dtype=np.int32)], isClosed=True, color=(0, 255, 0), thickness=2)
-            cv.polylines(frame, [np.array(right_eye, dtype=np.int32)], isClosed=True, color=(0, 255, 0), thickness=2)
+            cv.polylines(frame, [np.array(left_eye, dtype=np.int32)], isClosed=True, color=eye_color, thickness=2)
+            cv.polylines(frame, [np.array(right_eye, dtype=np.int32)], isClosed=True, color=eye_color, thickness=2)
 
-            status_text = "FACE DETECTED"
+            status_text = f"EYE STATUS ({eye_state})"
             color = (0, 255, 0)
         else:
             status_text = "FACE NOT DETECTED"
@@ -115,15 +123,15 @@ class EyeTracker:
 
         return frame
 
-    # --- STEP 2: FACE DETECTION ---
-    def _draw_all_landmarks(self, frame_bgr, landmarks, radius: int = 1):
-        """Draws every facial landmark point."""
-        h, w = frame_bgr.shape[:2]
-        for lm in landmarks:
-            x = int(lm.x * w)
-            y = int(lm.y * h)
-            if 0 <= x < w and 0 <= y < h:
-                cv.circle(frame_bgr, (x, y), radius, (0, 255, 0), -1)
+    # # --- STEP 2: FACE DETECTION ---
+    # def _draw_all_landmarks(self, frame_bgr, landmarks, radius: int = 1):
+    #     """Draws every facial landmark point."""
+    #     h, w = frame_bgr.shape[:2]
+    #     for lm in landmarks:
+    #         x = int(lm.x * w)
+    #         y = int(lm.y * h)
+    #         if 0 <= x < w and 0 <= y < h:
+    #             cv.circle(frame_bgr, (x, y), radius, (0, 255, 0), -1)
         
     def run(self):
         cap = cv.VideoCapture(0)
