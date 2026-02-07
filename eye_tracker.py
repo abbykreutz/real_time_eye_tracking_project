@@ -14,8 +14,10 @@ VisionRunningMode = mp.tasks.vision.RunningMode
 
 MODEL_PATH = "face_landmarker.task"
 
-# # --- TEST OPENCV INSTALLATION ---
+LEFT_EYE_INDICES = [362, 385, 387, 263, 373, 380]
+RIGHT_EYE_INDICES = [33, 160, 158, 133, 153, 144]
 
+# # --- STEP 1: TEST OPENCV INSTALLATION ---
 # print("OpenCV:", cv.__version__)
 # img = np.zeros((120, 400, 3), dtype=np.uint8)
 # cv.putText(img, "OpenCV OK", (10, 80), cv.FONT_HERSHEY_SIMPLEX, 2, (255,255,255), 3)
@@ -41,14 +43,24 @@ class EyeTracker:
         self._face_detected = None
         
     def calculate_ear(self, eye_landmarks):
-        # Compute Eye Aspect Ratio
-        # Return float value
-        return None
+        p1, p2, p3, p4, p5, p6 = eye_landmarks
+
+        v1 = np.linalg.norm(np.array(p2) - np.array(p6))
+        v2 = np.linalg.norm(np.array(p3) - np.array(p5))
+        h = np.linalg.norm(np.array(p1) - np.array(p4))
+
+        if h == 0:
+            return 0.0
+        ear = (v1 + v2) / (2.0 * h)
+        return ear
         
     def get_eye_landmarks(self, landmarks, indices, frame_w, frame_h):
-        # Extract specific eye landmarks
-        # Return list of (x, y) coordinates
-        return None
+        eye_landmarks = []
+        for eye in indices:
+            x = int(landmarks[eye].x * frame_w)
+            y = int(landmarks[eye].y * frame_h)
+            eye_landmarks.append((x, y))
+        return eye_landmarks
         
     def process_frame(self, frame):
         self.frame_count += 1
@@ -65,8 +77,27 @@ class EyeTracker:
             print("Face Detected" if detected else "No Face Detected")
             self._face_detected = detected
 
+        h, w = frame.shape[:2]
+
         if detected:
             self._draw_all_landmarks(frame, result.face_landmarks[0])
+
+            left_eye = self.get_eye_landmarks(result.face_landmarks[0], LEFT_EYE_INDICES, w, h)
+            right_eye = self.get_eye_landmarks(result.face_landmarks[0], RIGHT_EYE_INDICES, w, h)
+
+            left_ear = self.calculate_ear(left_eye)
+            right_ear = self.calculate_ear(right_eye)
+            avg_ear = (left_ear + right_ear) / 2.0
+
+            eye_color = (255, 0, 0)  # blue (OPEN)
+            eye_state = "OPEN"
+            if avg_ear < self.ear_threshold:
+                eye_color = (0, 0, 255)  # red (CLOSED)
+                eye_state = "CLOSED"
+
+            cv.polylines(frame, [np.array(left_eye, dtype=np.int32)], isClosed=True, color=(0, 255, 0), thickness=2)
+            cv.polylines(frame, [np.array(right_eye, dtype=np.int32)], isClosed=True, color=(0, 255, 0), thickness=2)
+
             status_text = "FACE DETECTED"
             color = (0, 255, 0)
         else:
@@ -84,6 +115,7 @@ class EyeTracker:
 
         return frame
 
+    # --- STEP 2: FACE DETECTION ---
     def _draw_all_landmarks(self, frame_bgr, landmarks, radius: int = 1):
         """Draws every facial landmark point."""
         h, w = frame_bgr.shape[:2]
@@ -95,7 +127,6 @@ class EyeTracker:
         
     def run(self):
         cap = cv.VideoCapture(0)
-
         cap.set(cv.CAP_PROP_FPS, 30)
         cap.set(cv.CAP_PROP_FRAME_WIDTH, 640)
         cap.set(cv.CAP_PROP_FRAME_HEIGHT, 480)
@@ -118,6 +149,7 @@ class EyeTracker:
         
         cap.release()
         cv.destroyAllWindows()
-        
+
+
 if __name__ == "__main__":
     EyeTracker().run()
