@@ -19,6 +19,8 @@ MODEL_PATH = "face_landmarker.task"
 LEFT_EYE_INDICES = [362, 385, 387, 263, 373, 380]
 RIGHT_EYE_INDICES = [33, 160, 158, 133, 153, 144]
 
+FONT = cv.FONT_HERSHEY_SIMPLEX
+
 # # TEST OPENCV INSTALLATION
 # print("OpenCV:", cv.__version__)
 # img = np.zeros((120, 400, 3), dtype=np.uint8)
@@ -197,24 +199,26 @@ class EyeTracker:
             left_eye_color = (0, 0, 255) if self.left_eye_state == "CLOSED" else (0, 225, 0)
             right_eye_color = (0, 0, 255) if self.right_eye_state == "CLOSED" else (0, 225, 0)
 
-            cv.polylines(frame, [np.array(left_eye, dtype=np.int32)], isClosed=True, color=left_eye_color)
-            cv.polylines(frame, [np.array(right_eye, dtype=np.int32)], isClosed=True, color=right_eye_color)
+            cv.polylines(frame, [np.array(left_eye, dtype=np.int32)], isClosed=True, 
+                         color=left_eye_color, lineType=cv.LINE_AA)
+            cv.polylines(frame, [np.array(right_eye, dtype=np.int32)], isClosed=True, 
+                         color=right_eye_color, lineType=cv.LINE_AA)
 
             left_text_color = (0, 0, 255) if self.left_eye_state == "CLOSED" else (0, 255, 0)
-            cv.putText(frame, f"LEFT: {self.left_eye_state} (EAR:{self.left_ear_value:.3f})", (10, 30),
-                       cv.FONT_HERSHEY_SIMPLEX, 0.8, left_text_color, 2)
-            cv.putText(frame, f"Left Blinks {self.left_blink_count} | BPM: {left_bpm:.1f}", (10, 60),
-                       cv.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-            cv.putText(frame, f"L-Duration: {self.left_blink_duration / self.fps:.2f}s", (10, 90),
-                       cv.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+            cv.putText(frame, f"LEFT: {self.left_eye_state} (EAR: {self.left_ear_value:.2f})",
+                       (10, 30), FONT, 0.8, left_text_color, 2)
+            cv.putText(frame, f"L-Blink Count {self.left_blink_count} | BPM: {left_bpm:.1f}",
+                       (10, 60), FONT, 0.8, (255, 255, 255), 2)
+            cv.putText(frame, f"L-Blink Duration: {self.left_blink_duration / self.fps:.2f}s",
+                       (10, 90), FONT, 0.8, (255, 255, 255), 2)
             
             right_text_color = (0, 0, 255) if self.right_eye_state == "CLOSED" else (0, 255, 0)
-            cv.putText(frame, f"RIGHT: {self.right_eye_state} (EAR:{self.right_ear_value:.3f})", (10, 120),
-                       cv.FONT_HERSHEY_SIMPLEX, 0.8, right_text_color, 2)
-            cv.putText(frame, f"Right Blinks {self.right_blink_count} | BPM: {right_bpm:.1f}", (10, 150),
-                       cv.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-            cv.putText(frame, f"R-Duration: {self.right_blink_duration / self.fps:.2f}s", (10, 180),
-                       cv.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+            cv.putText(frame, f"RIGHT: {self.right_eye_state} (EAR: {self.right_ear_value:.2f})", 
+                       (10, 120), FONT, 0.8, right_text_color, 2)
+            cv.putText(frame, f"R-Blink Count {self.right_blink_count} | BPM: {right_bpm:.1f}",
+                       (10, 150), FONT, 0.8, (255, 255, 255), 2)
+            cv.putText(frame, f"R-Blink Duration: {self.right_blink_duration / self.fps:.2f}s",
+                       (10, 180), FONT, 0.8, (255, 255, 255), 2)
             
             wink_status = ""
             if self.left_is_winking:
@@ -223,8 +227,7 @@ class EyeTracker:
                 wink_status = "RIGHT WINKING"
 
             if wink_status:
-                cv.putText(frame, wink_status, (10, 210),
-                           cv.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                cv.putText(frame, wink_status, (10, 210), FONT, 0.8, (0, 255, 255), 2)
 
             face_status = "FACE DETECTED"
             color = (0, 255, 0)
@@ -232,11 +235,10 @@ class EyeTracker:
             face_status = "FACE NOT DETECTED"
             color = (0, 0, 255)
 
-        cv.putText(frame, face_status, (w - 250, 30),
-                   cv.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+        cv.putText(frame, face_status, (w - 250, 30), FONT, 0.8, color, 2)
 
-        cv.putText(frame, f"Frame: {self.frame_count}", (w - 200, 60),
-                   cv.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+        cv.putText(frame, f"Frame: {self.frame_count}", 
+                   (w - 200, 60), FONT, 0.8, (255, 255, 255), 2)
 
         return frame
 
