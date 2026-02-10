@@ -32,6 +32,7 @@ FONT = cv.FONT_HERSHEY_SIMPLEX
 
 # --- CODE ARCHITECTURE ---
 class EyeTracker:
+    """Initializes MediaPipe Face Landmarker, sets EAR threshold, and creates state variables for tracking left and right eye independently."""
     def __init__(self, model_path: str = MODEL_PATH, ear_threshold: float = 0.21):
         face_mesh = vision.FaceLandmarkerOptions(
             base_options=BaseOptions(model_asset_path=model_path),
@@ -73,10 +74,11 @@ class EyeTracker:
 
 
     def euclidean(self, p1, p2):
+        """Helper function to calculate Euclidean distance between two points."""
         return np.linalg.norm(np.array(p1) - np.array(p2))
         
     def calculate_ear(self, eye_landmarks):
-        """Calculate Eye Aspect Ratio (EAR) for a each eye."""
+        """Computes Eye Aspect Ratio (EAR) using Euclidean distances between eye landmarks."""
         p1, p2, p3, p4, p5, p6 = eye_landmarks
 
         v1 = self.euclidean(p2, p6)
@@ -90,6 +92,7 @@ class EyeTracker:
         return ear
         
     def get_eye_landmarks(self, landmarks, indices, frame_w, frame_h):
+        """Extracts pixel coordinates for eye landmarks from normalized MediaPipe output."""
         eye_landmarks = []
         for eye in indices:
             x = int(landmarks[eye].x * frame_w)
@@ -98,7 +101,7 @@ class EyeTracker:
         return eye_landmarks
     
     def update_eye_state(self, eye, ear_value, current_frame):
-        """Update eye state (OPEN/CLOSED) and count blinks based on EAR threshold."""
+        """Detects eye state transitions (OPEN to CLOSED, CLOSED to OPEN) and counts blink events based on EAR threshold."""
         if eye == "LEFT":
             prev_state = self.left_eye_state
             self.left_ear_value = ear_value
@@ -142,12 +145,12 @@ class EyeTracker:
                 self.right_blink_start_frame = None
 
     def detect_winking(self):
-        """Detect winking by tracking asymmetric eye states (one eye open, the other closed)."""
+        """Identifies asymmetric eye states (one eye open, one closed)."""
         self.left_is_winking = (self.left_eye_state == "CLOSED" and self.right_eye_state == "OPEN")
         self.right_is_winking = (self.left_eye_state == "OPEN" and self.right_eye_state == "CLOSED")
 
     def calculate_blink_frequency(self, blink_timestamps):
-        """Calculate blinks per minute from timestamps"""
+        """Calculate blinks per minute from timestamps using a 60–second sliding window."""
         if len(blink_timestamps) == 0:
             return 0.0
         
@@ -164,6 +167,7 @@ class EyeTracker:
         return blinks_per_minute
 
     def process_frame(self, frame):
+        """Main processing loop for each video frame; handles detection, state updates, text and visualization."""
         self.frame_count += 1
 
         rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
@@ -253,6 +257,7 @@ class EyeTracker:
     #             cv.circle(frame_bgr, (x, y), radius, (0, 255, 0), -1)
         
     def run(self):
+        """Captures webcam frames and displays results in real-time."""
         cap = cv.VideoCapture(0)
         cap.set(cv.CAP_PROP_FPS, 30)
         cap.set(cv.CAP_PROP_FRAME_WIDTH, 640)
