@@ -1,7 +1,5 @@
 # Real-Time Eye Tracking System
 
-## Project Description
-
 A real-time eye-tracking system that classifies eye states using OpenCV and MediaPipe Face Landmark detection. 
 The system supports both eyes states independently and can detect winking. It measures blink count over time, blink frequency (blinks per minute), and blink duration.
 
@@ -40,7 +38,7 @@ pip install opencv-python numpy mediapipe scipy
 
 Download the MediaPipe Face Landmark model and place it in the project directory:
 
-# The face_landmarker.task file should be in the same directory as eye_tracker.py
+***The face_landmarker.task file should be in the same directory as eye_tracker.py***
 
 You can download the model from the MediaPipe GitHub repository or use the direct download link provided in the MediaPipe documentation.
 
